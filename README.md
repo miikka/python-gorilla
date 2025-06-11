@@ -4,6 +4,12 @@ A Python implementation of the [Gorilla algorithm] for compressing floating poin
 
 [Gorilla algorithm]: https://www.vldb.org/pvldb/vol8/p1816-teller.pdf
 
+## Notes
+
+- I used [bitstring](https://bitstring.readthedocs.io/en/stable/) library, but
+  I think the code would have been cleaner by doing the bit twiddling with ints
+  and implementing bit-aligned IO by hand.
+
 ## Playground
 
 Under `webapp`, there's a simple web app that allows you to step through the encoding process.
