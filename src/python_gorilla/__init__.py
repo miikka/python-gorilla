@@ -36,16 +36,14 @@ def encode(input: list[float]) -> Bits:
         if xor_result.all(0):
             stream.insert(Bits("0b0"))
         else:
-            stream.insert(Bits("0b1"))
-
             current_leading = count_leading(xor_result)
             current_trailing = count_trailing(xor_result)
 
             if current_leading >= prev_leading and current_trailing == prev_trailing:
-                stream.insert(Bits("0b0"))
+                stream.insert(Bits("0b10"))
                 stream.insert(xor_result[prev_leading : (64 - prev_trailing)])
             else:
-                stream.insert(Bits("0b1"))
+                stream.insert(Bits("0b11"))
                 stream.insert(bitstring.pack("uint:5", current_leading))
                 meaningful_count = 64 - current_leading - current_trailing
                 assert meaningful_count > 0, (
@@ -77,15 +75,15 @@ def decode(input: Bits) -> list[float]:
     prev_trailing = 0
 
     while stream.pos < stream.length:
-        if stream.read("bool") is False:
+        if stream.read("bool") is False:  # control 0
             current_bits = prev_bits
-        elif stream.read("bool") is False:
+        elif stream.read("bool") is False:  # control 10
             meaningful_count = 64 - prev_leading - prev_trailing
             meaningful_bits = stream.read(meaningful_count)
 
             xor_result = Bits(prev_leading) + meaningful_bits + Bits(prev_trailing)
             current_bits = prev_bits ^ xor_result
-        else:
+        else:  # control 11
             current_leading = stream.read("uint:5")
             meaningful_count = stream.read("uint:6") + 1
             meaningful_bits = stream.read(meaningful_count)
