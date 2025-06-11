@@ -1,9 +1,15 @@
 from fasthtml.common import *
 import re
 import python_gorilla
-from urllib.parse import quote
 
-app, rt = fast_app()
+app, rt = fast_app(
+    hdrs=(
+        Link(
+            rel="stylesheet",
+            href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.colors.min.css",
+        ),
+    )
+)
 
 
 def compute_steps(values):
@@ -93,12 +99,18 @@ def compute_steps(values):
     return steps
 
 
-def highlight_meaningful(
-    bin_str: str, meaningful: str, lead: int, style: str = "padding:0; border-radius:0;"
-) -> Code:
+def bitmark(content: str, **kwargs) -> Mark:
+    return Mark(
+        content,
+        style="padding: 0; border-radius: 0;",
+        **kwargs,
+    )
+
+
+def highlight_meaningful(bin_str: str, meaningful: str, lead: int) -> Code:
     return Code(
         bin_str[:lead],
-        Mark(meaningful, style=style, title="Meaningful bits"),
+        bitmark(meaningful, title="Meaningful bits"),
         bin_str[lead + len(meaningful) :],
     )
 
@@ -197,12 +209,7 @@ def index(floats: str = "", step: int = 0):
                     start = steps[i]["prev_leading_pre"] or 0
                 else:
                     start = steps[i]["current_leading"] or 0
-                primary_style = (
-                    "padding:0; border-radius:0; "
-                    "--pico-mark-background-color: var(--pico-primary-background); "
-                    "--pico-mark-color: var(--pico-primary-inverse)"
-                )
-                bin_code = highlight_meaningful(bin_str, m, start, style=primary_style)
+                bin_code = highlight_meaningful(bin_str, m, start)
             else:
                 bin_code = Code(bin_str)
             ins = steps[i]["inserted_bits"]
@@ -217,53 +224,30 @@ def index(floats: str = "", step: int = 0):
                 # control (op) bits: default mark highlight
                 if ctrl:
                     ins_children.append(
-                        Mark(
-                            ctrl,
-                            style=(
-                                "padding:0; border-radius:0; "
-                                "--pico-mark-background-color: var(--pico-secondary-background); "
-                                "--pico-mark-color: var(--pico-secondary)"
-                            ),
-                            title="Control bits",
-                        )
+                        bitmark(ctrl, title="Control bits", cls="pico-background-jade-150")
                     )
                 if ctrl == "11":
                     cb = rest[:5]
                     mb = rest[5:11]
                     meaningful = rest[11:]
-                    cb_style = (
-                        "padding:0; border-radius:0; "
-                        "--pico-mark-background-color: var(--pico-info-background); "
-                        "--pico-mark-color: var(--pico-info)"
-                    )
-                    mb_style = (
-                        "padding:0; border-radius:0; "
-                        "--pico-mark-background-color: var(--pico-secondary-background); "
-                        "--pico-mark-color: var(--pico-secondary)"
-                    )
                     ins_children.append(
-                        Mark(
+                        bitmark(
                             cb,
-                            style=cb_style,
+                            cls="pico-background-pumpkin-150",
                             title=f"Leading zero count: {int(cb, 2)}",
                         )
                     )
                     ins_children.append(
-                        Mark(
+                        bitmark(
                             mb,
-                            style=mb_style,
+                            cls="pico-background-violet-150",
                             title=f"Meaningful bit count: {int(mb, 2) + 1}",
                         )
                     )
                     if meaningful:
                         ins_children.append(
-                            Mark(
+                            bitmark(
                                 meaningful,
-                                style=(
-                                    "padding:0; border-radius:0; "
-                                    "--pico-mark-background-color: var(--pico-primary-background); "
-                                    "--pico-mark-color: var(--pico-primary-inverse)"
-                                ),
                                 title="Meaningful bits",
                             )
                         )
@@ -271,13 +255,8 @@ def index(floats: str = "", step: int = 0):
                     # fits previous bits: rest is meaningful bits
                     if rest:
                         ins_children.append(
-                            Mark(
+                            bitmark(
                                 rest,
-                                style=(
-                                    "padding:0; border-radius:0; "
-                                    "--pico-mark-background-color: var(--pico-primary-background); "
-                                    "--pico-mark-color: var(--pico-primary-inverse)"
-                                ),
                                 title="Meaningful bits",
                             )
                         )
