@@ -25,3 +25,10 @@ Under `webapp`, there's a simple web app that allows you to step through the enc
 uv run python3 webapp/main.py
 # go to http://localhost:5001/
 ```
+
+## License
+
+Copyright 2025 Miikka Koskinen.
+
+The code in this repo is distributed under the MIT license, see [LICENSE](./LICENSE).
+All rights reserved for the slides (`slides.pdf`).
