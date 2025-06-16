@@ -16,6 +16,7 @@ On 2025-06-11, I ([Miikka Koskinen](https://miikka.me/)) gave a talk about the a
 ## Playground
 
 Under `webapp`, there's a simple web app that allows you to step through the encoding process.
+It's also hosted at `https://miikka.github.io/python-gorilla/`.
 
 > [!WARNING]
 > The web app was generated using OpenAI's Codex tool and the code quality is YOLO.
@@ -28,7 +29,7 @@ uv run python3 webapp/main.py
 # go to http://localhost:5001/
 ```
 
-You can also open the standalone HTML+JavaScript version by opening `webapp/index.html` directly in your browser.
+You can open the standalone HTML+JavaScript version by opening `webapp/index.html` directly in your browser.
 
 ## License
 
