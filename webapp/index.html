@@ -24,6 +24,7 @@
     </div>
   </main>
   <script>
+    let initialStep = 0;
     function packFloat64(f) {
       const buf = new ArrayBuffer(8);
       const dv = new DataView(buf);
@@ -95,15 +96,12 @@
     document.getElementById("input-form").addEventListener("submit", function(e) {
       e.preventDefault();
       const str = document.getElementById("floats-input").value.trim();
-      history.replaceState(
-        null,
-        '',
-        window.location.pathname + '?floats=' + encodeURIComponent(str)
-      );
       const items = str.split(/[\s,]+/).filter(Boolean);
       const vals = items.map(parseFloat);
       if (vals.some(isNaN)) { alert("Invalid float list"); return; }
-      window.items = items; window.steps = computeSteps(vals); window.idx = 0;
+      window.items = items;
+      window.steps = computeSteps(vals);
+      window.idx = Math.max(0, Math.min(initialStep, window.steps.length - 1));
       document.getElementById("input-container").hidden = true;
       document.getElementById("app-container").hidden = false;
       render();
@@ -144,13 +142,22 @@
       st.innerHTML = "<table>"+sr+"</table>";
       const np = idx+1, tb = info.stream_bits.length, bpv = tb/np, comp = 64/bpv; const stats = "<table><tr><th>Bits per value</th><td>"+bpv.toFixed(2)+"</td></tr><tr><th>Compression ratio</th><td>"+comp.toFixed(2)+"</td></tr></table>";
       document.getElementById("stats-table").innerHTML = stats;
+      history.replaceState(
+        null,
+        '',
+        window.location.pathname +
+          '?floats=' + encodeURIComponent(document.getElementById('floats-input').value.trim()) +
+          '&step=' + idx
+      );
     }
   // Initialize from URL parameters.
   (function() {
     const params = new URLSearchParams(window.location.search);
     const floatsParam = params.get('floats');
+    const stepParam = parseInt(params.get('step'), 10);
     if (floatsParam) {
       document.getElementById('floats-input').value = floatsParam;
+      initialStep = isNaN(stepParam) ? 0 : stepParam;
       document.getElementById('input-form').dispatchEvent(
         new Event('submit', { cancelable: true, bubbles: true })
       );
