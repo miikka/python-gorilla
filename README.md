@@ -21,10 +21,14 @@ Under `webapp`, there's a simple web app that allows you to step through the enc
 > The web app was generated using OpenAI's Codex tool and the code quality is YOLO.
 > The actual algorithm was handcrafted though.
 
+The Python version runs a backend web server.
+
 ```bash
 uv run python3 webapp/main.py
 # go to http://localhost:5001/
 ```
+
+You can also open the standalone HTML+JavaScript version by opening `webapp/index.html` directly in your browser.
 
 ## License
 

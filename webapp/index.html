@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gorilla Encoding Playground</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@latest/css/pico.min.css">
+  <style>:root { --pico-font-size: 100%; }</style>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.colors.min.css">
+</head>
+<body>
+  <main class="container">
+    <div id="input-container">
+      <form id="input-form">
+        <textarea id="floats-input" rows="3" cols="60" placeholder="e.g. 1.0 2.0 3.0"></textarea>
+        <button type="submit">Start</button>
+      </form>
+    </div>
+    <div id="app-container" hidden>
+      <div id="header-nav"></div>
+      <div id="preview-table"></div>
+      <div id="stats-table"></div>
+      <div id="step-details"></div>
+    </div>
+  </main>
+  <script>
+    function packFloat64(f) {
+      const buf = new ArrayBuffer(8);
+      const dv = new DataView(buf);
+      dv.setFloat64(0, f, false);
+      return dv.getBigUint64(0, false);
+    }
+    function toBin64(b) {
+      return b.toString(2).padStart(64, "0");
+    }
+    function countLeading(s) {
+      const i = s.indexOf("1");
+      return i >= 0 && i <= 31 ? i : 31;
+    }
+    function countTrailing(s) {
+      const i = s.lastIndexOf("1");
+      return i >= 0 ? s.length - i - 1 : 0;
+    }
+    function bitmark(content, title, cls) {
+      const c = cls ? ' class="' + cls + '"' : "";
+      const t = title ? ' title="' + title + '"' : "";
+      return '<mark style="padding:0;border-radius:0;"' + c + t + ">" + content + "</mark>";
+    }
+    function highlightBin(s, m, lead) {
+      return "<code>" + s.slice(0, lead) + bitmark(m, "Meaningful bits") + s.slice(lead + m.length) + "</code>";
+    }
+    function code(s) {
+      return "<code>" + s + "</code>";
+    }
+    function computeSteps(vals) {
+      const steps = [];
+      if (!vals.length) return steps;
+      let prevL = 64, prevT = 0;
+      const first = vals[0];
+      let prevB = packFloat64(first);
+      let prevS = toBin64(prevB);
+      let stream = prevS;
+      steps.push({index:0,current:first,prev_bits:"",current_bits:prevS,xor_bits:"",operation:"first",prev_leading_pre:null,prev_trailing_pre:null,current_leading:null,current_trailing:null,meaningful_bits:"",inserted_bits:prevS,stream_bits:stream,prev_leading_post:prevL,prev_trailing_post:prevT,control:null});
+      for (let i = 1; i < vals.length; i++) {
+        const v = vals[i];
+        const preL = prevL, preT = prevT;
+        const cb = packFloat64(v);
+        const cbs = toBin64(cb);
+        const xr = cb ^ prevB;
+        const xrs = toBin64(xr);
+        let op, ctrl, lead, trail, m, ins;
+        if (xr === 0n) {
+          op = "identical (control 0)"; ctrl = "0"; lead = null; trail = null; m = ""; ins = "0";
+        } else {
+          lead = countLeading(xrs); trail = countTrailing(xrs);
+          if (lead >= preL && trail === preT) {
+            op = "fits the previous meaningful bits (control 10)";
+            m = xrs.slice(preL, 64 - preT);
+            ins = "10" + m; ctrl = "10";
+          } else {
+            op = "new (control 11)";
+            m = xrs.slice(lead, 64 - trail);
+            const cbits = lead.toString(2).padStart(5, "0");
+            const mbits = (m.length - 1).toString(2).padStart(6, "0");
+            ins = "11" + cbits + mbits + m; ctrl = "11";
+            prevL = lead; prevT = trail;
+          }
+        }
+        stream += ins;
+        steps.push({index:i,current:v,prev_bits:prevS,current_bits:cbs,xor_bits:xrs,operation:op,prev_leading_pre:preL,prev_trailing_pre:preT,current_leading:lead,current_trailing:trail,meaningful_bits:m,inserted_bits:ins,stream_bits:stream,prev_leading_post:prevL,prev_trailing_post:prevT,control:ctrl});
+        prevB = cb; prevS = cbs;
+      }
+      return steps;
+    }
+    document.getElementById("input-form").addEventListener("submit", function(e) {
+      e.preventDefault();
+      const str = document.getElementById("floats-input").value.trim();
+      history.replaceState(
+        null,
+        '',
+        window.location.pathname + '?floats=' + encodeURIComponent(str)
+      );
+      const items = str.split(/[\s,]+/).filter(Boolean);
+      const vals = items.map(parseFloat);
+      if (vals.some(isNaN)) { alert("Invalid float list"); return; }
+      window.items = items; window.steps = computeSteps(vals); window.idx = 0;
+      document.getElementById("input-container").hidden = true;
+      document.getElementById("app-container").hidden = false;
+      render();
+    });
+    function render() {
+      const total = steps.length - 1;
+      const hn = document.getElementById("header-nav");
+      const p = idx > 0 ? '<button id="prev">Prev</button>' : "";
+      const n = idx < total ? '<button id="next">Next</button>' : "";
+      hn.innerHTML = '<div style="display:flex;align-items:center;justify-content:space-between;"><h1>Gorilla Encoding Playground</h1><div style="display:flex;gap:0.5em;">' + p + n + "</div></div>";
+      if (idx > 0) document.getElementById("prev").onclick = function() { idx--; render(); };
+      if (idx < total) document.getElementById("next").onclick = function() { idx++; render(); };
+      const pt = document.getElementById("preview-table"); let pr = "<table><tr><th>Value</th><th>Binary representation</th><th>Inserted bits</th></tr>";
+      for (let i = 0; i < items.length; i++) {
+        const step = steps[i];
+        const bs = i === 0 ? step.current_bits : step.xor_bits;
+        const md = step.meaningful_bits;
+        let binHtml = md ? (step.control === "10" ? highlightBin(bs, md, step.prev_leading_pre || 0) : highlightBin(bs, md, step.current_leading || 0)) : code(bs);
+        const ins = step.inserted_bits, cr = step.control;
+        let insHtml;
+        if (cr === null) insHtml = code(ins); else {
+          let rest = ins.slice((cr || "").length), parts = "";
+          if (cr) parts += bitmark(cr, "Control bits", "pico-background-jade-150");
+          if (cr === "11") { const cb = rest.slice(0,5), mb = rest.slice(5,11), mm = rest.slice(11); parts += bitmark(cb, "Leading zero count: "+parseInt(cb,2), "pico-background-pumpkin-150")+bitmark(mb, "Meaningful bit count: "+(parseInt(mb,2)+1), "pico-background-violet-150"); if(mm) parts += bitmark(mm, "Meaningful bits"); }
+          else if(cr === "10" && rest) parts += bitmark(rest, "Meaningful bits");
+          insHtml = code(parts);
+        }
+        if (i > idx) pr += "<tr><td>"+items[i]+"</td><td style='visibility:hidden'>"+binHtml+"</td><td style='visibility:hidden'>"+insHtml+"</td></tr>";
+        else pr += "<tr><td>"+(i===idx? "<strong>"+items[i]+"</strong>":"<span>"+items[i]+"</span>")+"</td><td>"+(i===idx? "<strong>"+binHtml+"</strong>":binHtml)+"</td><td>"+(i===idx? "<strong>"+insHtml+"</strong>":insHtml)+"</td></tr>";
+      }
+      pr += "</table>";
+      pt.innerHTML = pr;
+      const st = document.getElementById("step-details"); let sr = "";
+      const info = steps[idx], keys = [["operation","Operation"],["current","Current value"],["prev_bits","Previous bits"],["current_bits","Current bits"],["xor_bits","XOR bits"],["prev_leading_pre","Prev leading"],["prev_trailing_pre","Prev trailing"],["current_leading","Curr leading"],["current_trailing","Curr trailing"],["meaningful_bits","Meaningful bits"],["inserted_bits","Inserted bits"]];
+      for(const [k,l] of keys){const v=info[k]; if(v==null||v==="") continue; let cell; if(k===
+"xor_bits"&&info.meaningful_bits){ cell = highlightBin(v,info.meaningful_bits,info.current_leading||0); } else cell = [
+"prev_bits","current_bits","xor_bits","meaningful_bits","inserted_bits","stream_bits"].includes(k)?code(v):String(v); sr += "<tr><th style='width:16ch;white-space:nowrap'>"+l+"</th><td>"+cell+"</td></tr>";}
+      st.innerHTML = "<table>"+sr+"</table>";
+      const np = idx+1, tb = info.stream_bits.length, bpv = tb/np, comp = 64/bpv; const stats = "<table><tr><th>Bits per value</th><td>"+bpv.toFixed(2)+"</td></tr><tr><th>Compression ratio</th><td>"+comp.toFixed(2)+"</td></tr></table>";
+      document.getElementById("stats-table").innerHTML = stats;
+    }
+  // Initialize from URL parameters.
+  (function() {
+    const params = new URLSearchParams(window.location.search);
+    const floatsParam = params.get('floats');
+    if (floatsParam) {
+      document.getElementById('floats-input').value = floatsParam;
+      document.getElementById('input-form').dispatchEvent(
+        new Event('submit', { cancelable: true, bubbles: true })
+      );
+    }
+  })();
+  </script>
+</body>
+</html>
