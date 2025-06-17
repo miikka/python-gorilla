@@ -5,7 +5,7 @@ A Python implementation of the [Gorilla algorithm] for compressing floating poin
 [Gorilla algorithm]: https://www.vldb.org/pvldb/vol8/p1816-teller.pdf
 
 On 2025-06-11, I ([Miikka Koskinen](https://miikka.me/)) gave a talk about the algorithm and showed the playground app in this repo.
-[The slides](./slides.pdf) are available.
+**[A blog post with the slides](https://quanttype.net/posts/2025-06-16-compressing-with-gorilla.html) is available.**
 
 ## Notes
 
